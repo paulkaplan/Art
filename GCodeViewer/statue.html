@@ -1,0 +1,744 @@
+<html>
+  <head>
+    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <script src="js/three.dev.js"></script>
+    <script src="js/underscore.js"></script>
+    <script src="js/tween.js"></script>
+    <script src="js/OrbitControls.js"></script>
+    <script src="js/STLLoader.js"></script>
+    <script src="js/bootstrap.js"></script>    <script src="js/bootstrap-slider.js"></script>
+
+    <link rel="stylesheet" href="css/bootstrap.css" type="text/css" />
+        <link rel="stylesheet" href="css/slider.css" type="text/css" />
+
+    <style>
+    body{  color:#bbb !important; }
+
+      canvas { position:absolute; top:0; left:0; }
+      #input { position:relative; z-index: 100; }
+      #upload { padding-top: 1.5em; }
+      #options { padding:1em; }
+      #wrapper { padding:1em 2em; }
+      a { color: #222; text-decoration: none;}
+      .slider { min-width:10em;}
+    </style>
+
+  </head>
+
+  <body>
+
+    <div id="wrapper">
+
+      <h3>Virtual 3D Printer</h3>
+      <p> G-code visualizer by <a href="http://buildaweso.me">Paul Kaplan</a></p>
+      <div class="row">
+        <div class="span3">
+    <div id="input">
+
+<div class="accordion" id="accordion2">
+  <div class="accordion-group">
+    <div class="accordion-heading">
+      <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" href="#collapseOne">
+        Examples
+      </a>
+    </div>
+    <div id="collapseOne" class="accordion-body collapse">
+      <div class="accordion-inner">
+        <ul class="unstyled">
+          <li><a href="#" class="example" id="vase">Candle Stick</a></li>
+          <li><a href="#" class="example" id="vase_nofill">Vase<a></li>
+          <li><a href="#" class="example" id="snake">Snake<a></li>
+          <li><a href="#" class="example" id="trex">T-Rex</a></li>
+                    <li><a href="#" class="example" id="liberty">Statue of Liberty</a></li>
+
+        </ul>
+      </div>
+    </div>
+
+  </div>
+  <div class="accordion-group">
+    <div class="accordion-heading">
+      <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" href="#collapseTwo">
+        Upload your own
+      </a>
+    </div>
+
+    <div id="collapseTwo" class="accordion-body collapse">
+      <div id="upload" class="accordion-inner">
+              <!-- <div> -->
+      <!-- <form> -->
+        <input type="file" id="fileInput" name="file" />
+      <!-- </form> -->
+      <!-- </div> -->
+
+      </div>
+    </div>
+  </div>
+  <div class="accordion-group hide">
+    <div id="options">
+
+<label>Options</label>
+<label class="radio">
+  <input type="radio" name="optionsRadios" id="forward" value="option1" checked>Forward
+</label>
+<label class="radio">
+  <input type="radio" name="optionsRadios" id="backward" value="option2">Backward
+</label><br>
+
+      <label class="checkbox">
+          <input type="checkbox" id="showMovement">Show Travel Segments
+        </label>
+<br>
+<label>Speed</label>
+<div id="speed" class="slider"></div>
+<br>
+<label>Camera Height</label>
+<div id="camera" class="slider"></div>
+<br>
+<label>Noise</label>
+<div id="random" class="slider"></div>
+<br>
+<label>Current command</label>
+      <p><small id="current-command"></small></p>
+
+    </div>
+
+
+</div>
+
+    <div id="options" class="hide">
+      <label class="checkbox">
+          <input type="checkbox" id="showMovement">Show Travel Segments
+        </label>
+      <p id="current-command"></p>
+
+    </div>
+
+  </body>
+
+    <script type="x-shader/x-vertex" id="vertexshader">
+
+      uniform float time;
+      attribute float alpha;
+      attribute float moved;
+      // uniform float noise;
+      varying float alpha_value;
+      varying float moved_value;
+
+//
+// Description : Array and textureless GLSL 2D simplex noise function.
+//      Author : Ian McEwan, Ashima Arts.
+//  Maintainer : ijm
+//     Lastmod : 20110822 (ijm)
+//     License : Copyright (C) 2011 Ashima Arts. All rights reserved.
+//               Distributed under the MIT License. See LICENSE file.
+//               https://github.com/ashima/webgl-noise
+// 
+
+vec3 mod289(vec3 x) {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec2 mod289(vec2 x) {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec3 permute(vec3 x) {
+  return mod289(((x*34.0)+1.0)*x);
+}
+
+float snoise(vec2 v)
+  {
+  const vec4 C = vec4(0.211324865405187,  // (3.0-sqrt(3.0))/6.0
+                      0.366025403784439,  // 0.5*(sqrt(3.0)-1.0)
+                     -0.577350269189626,  // -1.0 + 2.0 * C.x
+                      0.024390243902439); // 1.0 / 41.0
+// First corner
+  vec2 i  = floor(v + dot(v, C.yy) );
+  vec2 x0 = v -   i + dot(i, C.xx);
+
+// Other corners
+  vec2 i1;
+  //i1.x = step( x0.y, x0.x ); // x0.x > x0.y ? 1.0 : 0.0
+  //i1.y = 1.0 - i1.x;
+  i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+  // x0 = x0 - 0.0 + 0.0 * C.xx ;
+  // x1 = x0 - i1 + 1.0 * C.xx ;
+  // x2 = x0 - 1.0 + 2.0 * C.xx ;
+  vec4 x12 = x0.xyxy + C.xxzz;
+  x12.xy -= i1;
+
+// Permutations
+  i = mod289(i); // Avoid truncation effects in permutation
+  vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+    + i.x + vec3(0.0, i1.x, 1.0 ));
+
+  vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+  m = m*m ;
+  m = m*m ;
+
+// Gradients: 41 points uniformly over a line, mapped onto a diamond.
+// The ring size 17*17 = 289 is close to a multiple of 41 (41*7 = 287)
+
+  vec3 x = 2.0 * fract(p * C.www) - 1.0;
+  vec3 h = abs(x) - 0.5;
+  vec3 ox = floor(x + 0.5);
+  vec3 a0 = x - ox;
+
+// Normalise gradients implicitly by scaling m
+// Approximation of: m *= inversesqrt( a0*a0 + h*h );
+  m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+
+// Compute final noise value at P
+  vec3 g;
+  g.x  = a0.x  * x0.x  + h.x  * x0.y;
+  g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+  return 130.0 * dot(m, g);
+}
+      float randomness = 1.0;
+
+      void main() {
+
+        alpha_value = alpha;
+        moved_value = moved;
+        vec3 pos = position;
+
+        // pos.x += randomness*snoise( vec2(pos.x, time) );
+        // pos.y += randomness*snoise( vec2(pos.y, time) );
+        // pos.z += randomness*snoise( vec2(pos.z, time) );
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( pos, 1.0 );
+
+      }
+
+    </script>
+ c
+    <script type="x-shader/x-fragment" id="fragmentshader">
+
+      varying float alpha_value;
+      varying float moved_value;
+
+      uniform vec3 extrudeColor;
+      uniform vec3 movementColor;
+      uniform int showMovement;
+      uniform float transparency;
+
+      void main() {
+        // Some default alpha
+        float alpha_multiplier = moved_value*transparency;
+
+        if( showMovement > 0 ){
+
+          // If alpha == 1, it is extrusion
+          if( alpha_value > 0.5 ){
+            gl_FragColor = vec4( extrudeColor, alpha_multiplier);
+          } else {
+            gl_FragColor = vec4( movementColor, alpha_multiplier );
+          }
+
+
+        } else {
+
+          // Else use the alpha value
+          gl_FragColor = vec4( extrudeColor, alpha_multiplier*alpha_value );
+
+        }
+
+      }
+
+    </script>
+
+
+  <!-- // <script src="js/gcode_viewer.js"></script> -->
+  <script>
+    var reader = new FileReader();
+
+    reader.onloadend = function(){
+      // console.log(reader.result)
+      $("#options").parent().show();
+      commands = loadGcode( reader.result )
+      animateGcode( commands );
+
+    }
+
+    var fileInput = document.getElementById('fileInput');
+    var movementInput = document.getElementById('showMovement');
+
+    fileInput.addEventListener('change', function(e){
+      // console.log(e.target.files);
+      var file = e.target.files[0];
+
+      reader.readAsText(file);
+
+    })
+
+    movementInput.addEventListener('change', function(e){
+      // console.log(e.target.checked);
+      uniforms.showMovement.value = e.target.checked ? 1 : 0;
+    })
+
+    $("input[name='optionsRadios']").change( function(e){
+      if(e.currentTarget.id === "forward"){
+        OPTIONS.forward = true;
+      } else {
+        OPTIONS.forward = false;
+      }
+    })
+
+    $("a.example").click( function(e){
+      var id = e.target.id;
+
+      $(e.target).append( $('<img id="loading" src="img/loading.gif" width="30" />') );
+
+      $.get("gcode/"+id+".gcode", function(data){
+        var loader = new THREE.STLLoader();
+        loader.load("stl/"+id+".stl", function(g){
+          var mesh = new THREE.Mesh( g, new THREE.MeshBasicMaterial({
+            color: 0x2ECC71,
+            opacity: 0.1,
+            wireframe:true,
+            wireframeLinewidth:0.5,
+            transparent:true
+          }) );
+          mesh.rotation.x = - Math.PI / 2;
+
+          // scene.add(mesh);
+        })
+        $("#loading").hide();
+
+        $("#collapseOne").collapse('toggle');
+
+        $("#options").parent().show();
+
+        commands = loadGcode(data)
+
+        animateGcode( commands );
+
+      })
+    })
+
+    $("#speed").slider({
+      min: 1,
+      max: 150,
+      value:1,
+      tooltip : 'hide'
+    })
+    .on('slide', function(e){
+
+      var v = e.value;
+
+      OPTIONS.n_steps = v;
+
+    })
+
+    $("#camera").slider({
+      min: 1,
+      max: 70,
+      value:21.7,
+      step:0.1,
+      tooltip : 'hide'
+    })
+    .on('slide', function(e){
+
+      var v = e.value;
+
+      OPTIONS.camera_height = v;
+
+    })
+
+    $("#random").slider({
+      min: 0,
+      max: 1,
+      value:0,
+      step:0.001,
+    })
+    .on('slide', function(e){
+
+      var v = e.value;
+
+      OPTIONS.random = v;
+
+    })
+
+
+
+    // loadGcode( testGcode() );
+
+var attributes = {
+
+  alpha : { type: 'f', value: [] },
+  moved : { type: 'f', value: [] }
+  // movement : { type: 'f'}
+};
+
+var uniforms = {
+
+
+  extrudeColor :     { type: "c", value: new THREE.Color( 0x2980B9 ) },
+
+  // extrudeColor :     { type: "c", value: new THREE.Color( 0xbbbbbb ) },
+  movementColor :     { type: "c", value: new THREE.Color( 0xF1C40F ) },
+
+  showMovement:{ type: 'i', value : 0 },
+
+  transparency:{ type: 'f', value: 0.35},
+
+  time : { type: 'f', value:0.0 }
+
+};
+var scene, camera, renderer, controls, nozzle, raw_commands;
+var N_COMMANDS = 0;
+var FEED = 1200;
+var FEED_SCALE = 1000;
+var GCODE_SCALE = 0.91;
+var NOZZLE_OFFSET = 10;
+
+var OPTIONS = {
+  show_gcode : true,
+  show_movement : false,
+  forward : true,
+  n_steps : 1,
+  animating : false,
+  camera_height : 21.7,
+  random : 0
+}
+
+init();
+animate();
+// animateTestGcode();
+var command_el = document.getElementById('current-command');
+
+function updateCommandDisplay(){
+
+  command_el.innerText = raw_commands[ command_cursor ] ;
+
+}
+
+function init(){
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(
+      35,         // Field of view
+      window.innerWidth / window.innerHeight,  // Aspect ratio
+      .1,         // Near
+      10000       // Far
+  );
+
+  camera.position.set(120,70,100);
+  camera.lookAt( new THREE.Vector3(0, 20, 0) );
+
+  renderer = new THREE.WebGLRenderer({ 
+    antialias: true,
+    preserveDrawingBuffer: true
+   });
+
+  // scene.fog = new THREE.Fog( 0xECF0F1, 50, 500)
+  renderer.setSize( window.innerWidth, window.innerHeight);
+  // renderer.setSize( 2*window.innerWidth, 2*window.innerHeight );
+  renderer.setClearColor( new THREE.Color(0x000000) );
+  document.body.appendChild( renderer.domElement );
+
+  controls = new THREE.OrbitControls( camera );
+  controls.center = new THREE.Vector3(0,20,0);
+
+  var plane = new THREE.Mesh( new THREE.PlaneGeometry( 100, 100, 20, 20 ), new THREE.MeshBasicMaterial( { color: 0xbbbbbb, wireframe: true } ) );
+  plane.rotation.x = - Math.PI / 2;
+  // scene.add( plane );
+
+  var light = new THREE.PointLight(0xffffff);
+
+  camera.add( light );
+  scene.add( camera );
+
+  var loader = new THREE.STLLoader();
+  loader.load( './nozzle.stl', function(geometry){
+
+      _.each(geometry.vertices, function(v){
+        v.z -= 23;
+      });
+
+      var mat = new THREE.MeshLambertMaterial({
+        color: 0xF1C40F
+      });
+
+      tool = new THREE.Mesh( geometry, mat );
+
+      tool.rotation.x = Math.PI / 2;
+      tool.scale.set(0.125, 0.125, 0.125);
+      // scene.add( tool);
+
+ } );
+
+}
+
+function render(){
+
+  renderer.render( scene, camera );
+
+}
+
+var frame = 0;
+var up = true;
+function animate(){
+  if(commands){
+
+    if(up && command_cursor > commands.length-5){
+      OPTIONS.forward = false;
+      up = false;
+    }
+
+    if( !up && command_cursor < 200 ){
+      OPTIONS.forward = true;
+      up = true;
+    }
+
+  }
+  requestAnimationFrame( animate );
+
+  render();
+
+  controls.update();
+
+  TWEEN.update();
+
+  if(OPTIONS.animating){ for(var i=0; i<OPTIONS.n_steps; i++){ stepGcode( commands ); }}
+
+  controls.center.y  = OPTIONS.camera_height;
+
+  uniforms.time.value  = Math.exp( Math.sin( frame / 1000.0 ) );
+}
+
+function testGcode(){
+
+  return _.reduce( _.range(100), function(memo, n){
+
+    return memo + "G0 X"+Math.random()*30+" Y"+Math.random()*30+"\n";
+
+  }, "")
+}
+
+function loadGcode(str){
+
+  var gcode_str = str;
+
+  // May not be all gcode?
+  var lines = str.split("\n");
+
+  // Filter (only G0/G1 for now)
+  var filtered_lines = _.filter(lines, function(str){ return  (str.substring(0, 2)==="G0" || str.substring(0,2)==="G1"); })
+
+  raw_commands = filtered_lines;
+
+  var commands = _.map(filtered_lines, function(line){
+
+  // raw_commands = commands;
+
+    var reX = /X([^\s]+)/g.exec(line);
+    var reY = /Y([^\s]+)/g.exec(line);
+    var reZ = /Z([^\s]+)/g.exec(line);
+    var reF = /F([^\s]+)/g.exec(line);
+    var reE = /E([^\s]+)/g.exec(line);
+
+    var x = reX ? parseFloat( reX[1] )*GCODE_SCALE : false ;
+    var y = reY ? parseFloat( reY[1] )*GCODE_SCALE : false ;
+    var z = reZ ? parseFloat( reZ[1] )*GCODE_SCALE : false ;
+    var f = reF ? parseFloat( reF[1] ) : false ;
+    var e = reE ? parseFloat( reE[1] ) : false ;
+
+    // console.log(x, y, z)
+
+    return { x: x, y:z, z:y, f:f, e:e }
+
+  })
+
+  scene.add( initLine(commands.length) );
+  N_COMMANDS = commands.length;
+
+  return commands;
+
+}
+
+var commands, segments, lineGeo, tool, lastE, currE, command_cursor=0,lineColors = [];
+var pos = new THREE.Vector3();
+var current_position = new THREE.Vector3();
+
+function animateGcode( commands ){
+  OPTIONS.animating = true;
+}
+
+
+
+function stepGcode(commands){
+
+  // camera.position.y = tool.position.y + OPTIONS.camera_height;
+
+  // controls.center.y = tool.position.y;
+
+  var step = OPTIONS.forward ? 1 : -1;
+
+  if(command_cursor === 0 && step === -1){
+    return;
+  }
+
+  if(command_cursor+step<commands.length){
+
+    if(OPTIONS.show_gcode){
+
+      updateCommandDisplay();
+
+    }
+
+    current_position.copy( tool.position );
+    var command = commands[command_cursor];
+
+    // var final_pos = commands[cursor];
+    if( command.f ){
+      FEED = command.f;
+    }
+
+    if( command.e ){
+      currE = command.e;
+    }
+
+    pos.x = command.x === false ? current_position.x : command.x ;
+    pos.y = command.y === false ? current_position.y : command.y ;
+    pos.z = command.z === false ? current_position.z : command.z ;
+    // attributes.alpha.value[ N_COMMANDS-cursor-1 ] = 1.0;
+
+    // pos.x += OPTIONS.random*( Math.random() - 0.5 );
+    // pos.y += OPTIONS.random*( Math.random() - 0.5 )*0.01;
+    // pos.z += OPTIONS.random*( Math.random() - 0.5 );
+
+
+    // If currE == lastE, this segment is movement segment
+    if( currE === lastE ){
+      
+      // if(command_cursor > 10){ controls.center.y = tool.position.y; }
+
+      lineGeo.vertices[ cursor ].set(
+        tool.position.x, 
+        tool.position.y, 
+        tool.position.z
+      );
+      lineGeo.verticesNeedUpdate = true;
+
+      attributes.alpha.value[ cursor ] = 0;
+
+      attributes.alpha.needsUpdate = true;
+
+      attributes.moved.value[ cursor ] = OPTIONS.forward ? 1.0 : 0.0;
+      attributes.moved.needsUpdate = true;
+
+      cursor += step;
+
+    }
+
+
+    tool.position.set( pos.x, pos.y, pos.z );
+
+    // Drag two vertices to prevent flashing to center
+    lineGeo.vertices[ cursor ].set(pos.x, pos.y, pos.z);
+    lineGeo.vertices[ cursor+1 ].set(pos.x, pos.y, pos.z);
+
+    lineGeo.verticesNeedUpdate = true;
+
+// // If not extruding
+    if( currE === lastE ){
+
+      attributes.alpha.value[ cursor ] = 0;     
+      attributes.moved.value[ cursor ] = OPTIONS.forward ? 1.0 : 0.0;
+      attributes.moved.needsUpdate = true;
+
+      cursor += step;
+
+      lineGeo.vertices[ cursor ].set(tool.position.x, tool.position.y, tool.position.z);
+
+      // attributes..value[ cursor ] = 1; 
+
+      lineGeo.verticesNeedUpdate = true;
+      attributes.alpha.needsUpdate = true;
+
+      // cursor += 1;
+    } else {
+
+      attributes.alpha.value[ cursor ] = 1; 
+
+      attributes.alpha.needsUpdate = true;
+
+    }
+
+    attributes.moved.value[ cursor ] = OPTIONS.forward ? 1.0 : 0.0;
+    attributes.moved.needsUpdate = true;
+
+    command_cursor += step;
+    cursor += step;
+
+    lastE = currE;
+  }
+
+}
+
+var cursor = 0;
+var max = 0;
+
+
+function initLine(cmds){
+
+  var moved = [];
+  lineGeo = new THREE.Geometry();
+  for(var n=0; n<2*cmds; n++){
+
+    lineGeo.vertices.push( new THREE.Vector3() );
+    lineColors.push( 0.0 );
+    moved.push(0.0);
+
+  }
+  max = cmds;
+
+  attributes.alpha.value = lineColors;
+  attributes.moved.value = moved;
+
+  lineMesh = new THREE.Line( lineGeo, shaderMaterial );
+  return lineMesh;
+
+}
+
+
+var shaderMaterial = new THREE.ShaderMaterial( {
+
+  uniforms:     uniforms,
+  attributes:     attributes,
+
+  vertexShader:   document.getElementById( 'vertexshader' ).textContent,
+  fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
+
+  transparent:true,
+  depthWrite : false,
+  linewidth: 1.25
+});
+
+function save(){
+  window.open( renderer.domElement.toDataURL(), 'new' );
+}
+$(document).ready( function(){
+
+  $("#liberty").click();
+  $("#input").hide();
+
+  controls.rotateDown(2.75);
+  controls.zoomIn(2.5);
+
+  OPTIONS.n_steps = 10;
+  OPTIONS.camera_height += 5;
+
+  setInterval( spin, 20) ;
+});
+
+function spin(){
+  controls.rotateRight(0.0001);
+}
+
+  </script>
+
+</html>
