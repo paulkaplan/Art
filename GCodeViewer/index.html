@@ -327,8 +327,8 @@ function init(){
       10000       // Far
   );
 
-  camera.position.set(120,70,100);
-  camera.lookAt( new THREE.Vector3(0, 20, 0) );
+  camera.position.set(12,20,10);
+  camera.lookAt( new THREE.Vector3(1,0,1) );
 
   renderer = new THREE.WebGLRenderer({ 
     antialias: true
@@ -339,7 +339,7 @@ function init(){
   document.body.appendChild( renderer.domElement );
 
   controls = new THREE.OrbitControls( camera );
-  controls.center = new THREE.Vector3(0,20,0);
+  controls.center = new THREE.Vector3(1,0,1);
 
   var plane = new THREE.Mesh( new THREE.PlaneGeometry( 100, 100, 20, 20 ), new THREE.MeshBasicMaterial( { color: 0xbbbbbb, wireframe: true } ) );
   plane.rotation.x = - Math.PI / 2;
